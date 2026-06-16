@@ -19,20 +19,18 @@ Dieses Repository enthält aktuell Phase 0: Architektur, Ziel-Dateistruktur, Dat
 ## Dokumentation
 
 - Architektur: [`docs/phase-0-architecture.md`](docs/phase-0-architecture.md)
-- Deployment: [`docs/deployment.md`](docs/deployment.md)
-- Secrets: [`docs/secrets.md`](docs/secrets.md)
+- Datenbankschema: [`packages/database/src/schema.ts`](packages/database/src/schema.ts)
 - Compose-Grundlage: [`docker-compose.yml`](docker-compose.yml)
 
-## Lokaler Start
+## Geplanter lokaler Start
+
+Die in Phase 0 enthaltene Compose-Datei ist die Zielgrundlage. Die referenzierten App-Dockerfiles werden in späteren Phasen ergänzt.
 
 ```bash
 cp .env.example .env
 mkdir -p secrets
 openssl rand -base64 32 > secrets/postgres_password.txt
 openssl rand -base64 32 > secrets/master_key.txt
-chmod 600 secrets/*.txt
-docker compose config
-docker compose up --build
 ```
 
 ## Sicherheitshinweis
