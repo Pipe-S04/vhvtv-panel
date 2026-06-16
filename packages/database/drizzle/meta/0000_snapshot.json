@@ -1,5 +1,5 @@
 {
-  "id": "c538ca62-3e2e-40db-827b-554b06336225",
+  "id": "2d1b91d9-448e-4b4b-931d-b3d81fe0e312",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -32,13 +32,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -198,8 +191,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.monitoring_runs": {
-      "name": "monitoring_runs",
+    "public.channel_checks": {
+      "name": "channel_checks",
       "schema": "",
       "columns": {
         "id": {
@@ -209,30 +202,18 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "job_id": {
-          "name": "job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "channel_id": {
           "name": "channel_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "started_at": {
-          "name": "started_at",
+        "checked_at": {
+          "name": "checked_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         },
         "status": {
           "name": "status",
@@ -373,8 +354,8 @@
         }
       },
       "indexes": {
-        "monitoring_runs_channel_started_idx": {
-          "name": "monitoring_runs_channel_started_idx",
+        "channel_checks_channel_checked_at_idx": {
+          "name": "channel_checks_channel_checked_at_idx",
           "columns": [
             {
               "expression": "channel_id",
@@ -383,7 +364,7 @@
               "nulls": "last"
             },
             {
-              "expression": "started_at",
+              "expression": "checked_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -394,11 +375,11 @@
           "method": "btree",
           "with": {}
         },
-        "monitoring_runs_started_at_idx": {
-          "name": "monitoring_runs_started_at_idx",
+        "channel_checks_checked_at_idx": {
+          "name": "channel_checks_checked_at_idx",
           "columns": [
             {
-              "expression": "started_at",
+              "expression": "checked_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -411,18 +392,9 @@
         }
       },
       "foreignKeys": {
-        "monitoring_runs_job_id_monitoring_jobs_id_fk": {
-          "name": "monitoring_runs_job_id_monitoring_jobs_id_fk",
-          "tableFrom": "monitoring_runs",
-          "tableTo": "monitoring_jobs",
-          "columnsFrom": ["job_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "monitoring_runs_channel_id_channels_id_fk": {
-          "name": "monitoring_runs_channel_id_channels_id_fk",
-          "tableFrom": "monitoring_runs",
+        "channel_checks_channel_id_channels_id_fk": {
+          "name": "channel_checks_channel_id_channels_id_fk",
+          "tableFrom": "channel_checks",
           "tableTo": "channels",
           "columnsFrom": ["channel_id"],
           "columnsTo": ["id"],
@@ -434,244 +406,13 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "monitoring_runs_http_status_valid": {
-          "name": "monitoring_runs_http_status_valid",
-          "value": "\"monitoring_runs\".\"http_status\" is null or (\"monitoring_runs\".\"http_status\" >= 100 and \"monitoring_runs\".\"http_status\" <= 599)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.channel_monitoring_settings": {
-      "name": "channel_monitoring_settings",
-      "schema": "",
-      "columns": {
-        "channel_id": {
-          "name": "channel_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
+        "channel_checks_http_status_valid": {
+          "name": "channel_checks_http_status_valid",
+          "value": "\"channel_checks\".\"http_status\" is null or (\"channel_checks\".\"http_status\" >= 100 and \"channel_checks\".\"http_status\" <= 599)"
         },
-        "monitor_enabled": {
-          "name": "monitor_enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "priority": {
-          "name": "priority",
-          "type": "channel_priority",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'manual'"
-        },
-        "check_interval_minutes": {
-          "name": "check_interval_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 30
-        },
-        "check_duration_seconds": {
-          "name": "check_duration_seconds",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 15
-        },
-        "failure_threshold": {
-          "name": "failure_threshold",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 2
-        },
-        "recovery_threshold": {
-          "name": "recovery_threshold",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 2
-        },
-        "next_check_at": {
-          "name": "next_check_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_check_at": {
-          "name": "last_check_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "channel_monitoring_settings_due_idx": {
-          "name": "channel_monitoring_settings_due_idx",
-          "columns": [
-            {
-              "expression": "monitor_enabled",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "next_check_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "priority",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "channel_monitoring_settings_channel_id_channels_id_fk": {
-          "name": "channel_monitoring_settings_channel_id_channels_id_fk",
-          "tableFrom": "channel_monitoring_settings",
-          "tableTo": "channels",
-          "columnsFrom": ["channel_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "channel_monitoring_settings_interval_positive": {
-          "name": "channel_monitoring_settings_interval_positive",
-          "value": "\"channel_monitoring_settings\".\"check_interval_minutes\" > 0"
-        },
-        "channel_monitoring_settings_duration_positive": {
-          "name": "channel_monitoring_settings_duration_positive",
-          "value": "\"channel_monitoring_settings\".\"check_duration_seconds\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.channel_status": {
-      "name": "channel_status",
-      "schema": "",
-      "columns": {
-        "channel_id": {
-          "name": "channel_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "channel_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'unknown'"
-        },
-        "last_run_id": {
-          "name": "last_run_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_checked_at": {
-          "name": "last_checked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "consecutive_failures": {
-          "name": "consecutive_failures",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "consecutive_successes": {
-          "name": "consecutive_successes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "channel_status_status_idx": {
-          "name": "channel_status_status_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "channel_status_channel_id_channels_id_fk": {
-          "name": "channel_status_channel_id_channels_id_fk",
-          "tableFrom": "channel_status",
-          "tableTo": "channels",
-          "columnsFrom": ["channel_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "channel_status_last_run_id_monitoring_runs_id_fk": {
-          "name": "channel_status_last_run_id_monitoring_runs_id_fk",
-          "tableFrom": "channel_status",
-          "tableTo": "monitoring_runs",
-          "columnsFrom": ["last_run_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "channel_status_failures_non_negative": {
-          "name": "channel_status_failures_non_negative",
-          "value": "\"channel_status\".\"consecutive_failures\" >= 0"
+        "channel_checks_non_negative_timings": {
+          "name": "channel_checks_non_negative_timings",
+          "value": "coalesce(\"channel_checks\".\"connection_ms\", 0) >= 0 and coalesce(\"channel_checks\".\"first_byte_ms\", 0) >= 0 and coalesce(\"channel_checks\".\"check_duration_ms\", 0) >= 0"
         }
       },
       "isRLSEnabled": false
@@ -717,12 +458,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "stream_url_encrypted": {
-          "name": "stream_url_encrypted",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "logo_path": {
           "name": "logo_path",
           "type": "text",
@@ -735,6 +470,69 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "monitor_enabled": {
+          "name": "monitor_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "channel_priority",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        },
+        "check_interval_minutes": {
+          "name": "check_interval_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 30
+        },
+        "check_duration_seconds": {
+          "name": "check_duration_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 15
+        },
+        "next_check_at": {
+          "name": "next_check_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_check_at": {
+          "name": "last_check_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "current_status": {
+          "name": "current_status",
+          "type": "channel_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unknown'"
+        },
+        "consecutive_failures": {
+          "name": "consecutive_failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "consecutive_successes": {
+          "name": "consecutive_successes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
@@ -769,6 +567,39 @@
             }
           ],
           "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "channels_due_idx": {
+          "name": "channels_due_idx",
+          "columns": [
+            {
+              "expression": "monitor_enabled",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "enabled",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "next_check_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "priority",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -818,11 +649,28 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "channels_check_interval_positive": {
+          "name": "channels_check_interval_positive",
+          "value": "\"channels\".\"check_interval_minutes\" > 0"
+        },
+        "channels_check_duration_positive": {
+          "name": "channels_check_duration_positive",
+          "value": "\"channels\".\"check_duration_seconds\" > 0"
+        },
+        "channels_failures_non_negative": {
+          "name": "channels_failures_non_negative",
+          "value": "\"channels\".\"consecutive_failures\" >= 0"
+        },
+        "channels_successes_non_negative": {
+          "name": "channels_successes_non_negative",
+          "value": "\"channels\".\"consecutive_successes\" >= 0"
+        }
+      },
       "isRLSEnabled": false
     },
-    "public.monitoring_aggregates_daily": {
-      "name": "monitoring_aggregates_daily",
+    "public.daily_channel_stats": {
+      "name": "daily_channel_stats",
       "schema": "",
       "columns": {
         "channel_id": {
@@ -864,8 +712,8 @@
         }
       },
       "indexes": {
-        "monitoring_aggregates_daily_day_idx": {
-          "name": "monitoring_aggregates_daily_day_idx",
+        "daily_channel_stats_day_idx": {
+          "name": "daily_channel_stats_day_idx",
           "columns": [
             {
               "expression": "day",
@@ -881,9 +729,9 @@
         }
       },
       "foreignKeys": {
-        "monitoring_aggregates_daily_channel_id_channels_id_fk": {
-          "name": "monitoring_aggregates_daily_channel_id_channels_id_fk",
-          "tableFrom": "monitoring_aggregates_daily",
+        "daily_channel_stats_channel_id_channels_id_fk": {
+          "name": "daily_channel_stats_channel_id_channels_id_fk",
+          "tableFrom": "daily_channel_stats",
           "tableTo": "channels",
           "columnsFrom": ["channel_id"],
           "columnsTo": ["id"],
@@ -892,23 +740,27 @@
         }
       },
       "compositePrimaryKeys": {
-        "monitoring_aggregates_daily_channel_id_day_pk": {
-          "name": "monitoring_aggregates_daily_channel_id_day_pk",
+        "daily_channel_stats_channel_id_day_pk": {
+          "name": "daily_channel_stats_channel_id_day_pk",
           "columns": ["channel_id", "day"]
         }
       },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "monitoring_aggregates_daily_availability_range": {
-          "name": "monitoring_aggregates_daily_availability_range",
-          "value": "\"monitoring_aggregates_daily\".\"availability_percent\" >= 0 and \"monitoring_aggregates_daily\".\"availability_percent\" <= 100"
+        "daily_channel_stats_availability_range": {
+          "name": "daily_channel_stats_availability_range",
+          "value": "\"daily_channel_stats\".\"availability_percent\" >= 0 and \"daily_channel_stats\".\"availability_percent\" <= 100"
+        },
+        "daily_channel_stats_incident_count_non_negative": {
+          "name": "daily_channel_stats_incident_count_non_negative",
+          "value": "\"daily_channel_stats\".\"incident_count\" >= 0"
         }
       },
       "isRLSEnabled": false
     },
-    "public.monitoring_aggregates_hourly": {
-      "name": "monitoring_aggregates_hourly",
+    "public.hourly_channel_stats": {
+      "name": "hourly_channel_stats",
       "schema": "",
       "columns": {
         "channel_id": {
@@ -963,8 +815,8 @@
         }
       },
       "indexes": {
-        "monitoring_aggregates_hourly_hour_idx": {
-          "name": "monitoring_aggregates_hourly_hour_idx",
+        "hourly_channel_stats_hour_idx": {
+          "name": "hourly_channel_stats_hour_idx",
           "columns": [
             {
               "expression": "hour",
@@ -980,9 +832,9 @@
         }
       },
       "foreignKeys": {
-        "monitoring_aggregates_hourly_channel_id_channels_id_fk": {
-          "name": "monitoring_aggregates_hourly_channel_id_channels_id_fk",
-          "tableFrom": "monitoring_aggregates_hourly",
+        "hourly_channel_stats_channel_id_channels_id_fk": {
+          "name": "hourly_channel_stats_channel_id_channels_id_fk",
+          "tableFrom": "hourly_channel_stats",
           "tableTo": "channels",
           "columnsFrom": ["channel_id"],
           "columnsTo": ["id"],
@@ -991,17 +843,21 @@
         }
       },
       "compositePrimaryKeys": {
-        "monitoring_aggregates_hourly_channel_id_hour_pk": {
-          "name": "monitoring_aggregates_hourly_channel_id_hour_pk",
+        "hourly_channel_stats_channel_id_hour_pk": {
+          "name": "hourly_channel_stats_channel_id_hour_pk",
           "columns": ["channel_id", "hour"]
         }
       },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "monitoring_aggregates_hourly_availability_range": {
-          "name": "monitoring_aggregates_hourly_availability_range",
-          "value": "\"monitoring_aggregates_hourly\".\"availability_percent\" >= 0 and \"monitoring_aggregates_hourly\".\"availability_percent\" <= 100"
+        "hourly_channel_stats_availability_range": {
+          "name": "hourly_channel_stats_availability_range",
+          "value": "\"hourly_channel_stats\".\"availability_percent\" >= 0 and \"hourly_channel_stats\".\"availability_percent\" <= 100"
+        },
+        "hourly_channel_stats_check_counts_valid": {
+          "name": "hourly_channel_stats_check_counts_valid",
+          "value": "\"hourly_channel_stats\".\"checks\" >= 0 and \"hourly_channel_stats\".\"successful_checks\" >= 0 and \"hourly_channel_stats\".\"successful_checks\" <= \"hourly_channel_stats\".\"checks\""
         }
       },
       "isRLSEnabled": false
@@ -1122,347 +978,14 @@
         "incidents_failed_checks_positive": {
           "name": "incidents_failed_checks_positive",
           "value": "\"incidents\".\"failed_checks\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.monitoring_events": {
-      "name": "monitoring_events",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
         },
-        "run_id": {
-          "name": "run_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
+        "incidents_recovery_checks_non_negative": {
+          "name": "incidents_recovery_checks_non_negative",
+          "value": "\"incidents\".\"successful_recovery_checks\" >= 0"
         },
-        "channel_id": {
-          "name": "channel_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "monitoring_event_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "data": {
-          "name": "data",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "monitoring_events_channel_created_idx": {
-          "name": "monitoring_events_channel_created_idx",
-          "columns": [
-            {
-              "expression": "channel_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "monitoring_events_type_idx": {
-          "name": "monitoring_events_type_idx",
-          "columns": [
-            {
-              "expression": "type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "monitoring_events_run_id_monitoring_runs_id_fk": {
-          "name": "monitoring_events_run_id_monitoring_runs_id_fk",
-          "tableFrom": "monitoring_events",
-          "tableTo": "monitoring_runs",
-          "columnsFrom": ["run_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "monitoring_events_channel_id_channels_id_fk": {
-          "name": "monitoring_events_channel_id_channels_id_fk",
-          "tableFrom": "monitoring_events",
-          "tableTo": "channels",
-          "columnsFrom": ["channel_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.monitoring_jobs": {
-      "name": "monitoring_jobs",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "channel_id": {
-          "name": "channel_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "monitoring_job_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "priority": {
-          "name": "priority",
-          "type": "channel_priority",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'manual'"
-        },
-        "scheduled_for": {
-          "name": "scheduled_for",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "leased_by": {
-          "name": "leased_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lease_expires_at": {
-          "name": "lease_expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "max_attempts": {
-          "name": "max_attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 3
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "monitoring_jobs_reserve_idx": {
-          "name": "monitoring_jobs_reserve_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "scheduled_for",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "priority",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "monitoring_jobs_lease_idx": {
-          "name": "monitoring_jobs_lease_idx",
-          "columns": [
-            {
-              "expression": "lease_expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "monitoring_jobs_channel_id_channels_id_fk": {
-          "name": "monitoring_jobs_channel_id_channels_id_fk",
-          "tableFrom": "monitoring_jobs",
-          "tableTo": "channels",
-          "columnsFrom": ["channel_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "monitoring_jobs_attempts_valid": {
-          "name": "monitoring_jobs_attempts_valid",
-          "value": "\"monitoring_jobs\".\"attempts\" >= 0 and \"monitoring_jobs\".\"max_attempts\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.provider_credentials": {
-      "name": "provider_credentials",
-      "schema": "",
-      "columns": {
-        "provider_id": {
-          "name": "provider_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "username_encrypted": {
-          "name": "username_encrypted",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "password_encrypted": {
-          "name": "password_encrypted",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "encryption_nonce": {
-          "name": "encryption_nonce",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "encryption_tag": {
-          "name": "encryption_tag",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "provider_credentials_provider_id_providers_id_fk": {
-          "name": "provider_credentials_provider_id_providers_id_fk",
-          "tableFrom": "provider_credentials",
-          "tableTo": "providers",
-          "columnsFrom": ["provider_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "provider_credentials_secret_present": {
-          "name": "provider_credentials_secret_present",
-          "value": "\"provider_credentials\".\"username_encrypted\" is not null or \"provider_credentials\".\"password_encrypted\" is not null"
+        "incidents_resolved_when_resolved": {
+          "name": "incidents_resolved_when_resolved",
+          "value": "(\"incidents\".\"status\" = 'open' and \"incidents\".\"resolved_at\" is null) or (\"incidents\".\"status\" = 'resolved' and \"incidents\".\"resolved_at\" is not null)"
         }
       },
       "isRLSEnabled": false
@@ -1496,6 +1019,30 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "username_encrypted": {
+          "name": "username_encrypted",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password_encrypted": {
+          "name": "password_encrypted",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "encryption_nonce": {
+          "name": "encryption_nonce",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "encryption_tag": {
+          "name": "encryption_tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "enabled": {
           "name": "enabled",
@@ -1555,7 +1102,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "providers_encrypted_credentials_complete": {
+          "name": "providers_encrypted_credentials_complete",
+          "value": "(\n    (\"providers\".\"username_encrypted\" is null and \"providers\".\"password_encrypted\" is null and \"providers\".\"encryption_nonce\" is null and \"providers\".\"encryption_tag\" is null)\n    or (\"providers\".\"username_encrypted\" is not null and \"providers\".\"password_encrypted\" is not null and \"providers\".\"encryption_nonce\" is not null and \"providers\".\"encryption_tag\" is not null)\n  )"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.settings": {
@@ -1589,87 +1141,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.worker_locks": {
-      "name": "worker_locks",
-      "schema": "",
-      "columns": {
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "scope": {
-          "name": "scope",
-          "type": "worker_lock_scope",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "locked_by": {
-          "name": "locked_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "lease_expires_at": {
-          "name": "lease_expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "worker_locks_lease_idx": {
-          "name": "worker_locks_lease_idx",
-          "columns": [
-            {
-              "expression": "scope",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "lease_expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -1681,7 +1152,7 @@
     "public.channel_status": {
       "name": "channel_status",
       "schema": "public",
-      "values": ["online", "suspect", "degraded", "offline", "recovering", "unknown", "paused"]
+      "values": ["online", "degraded", "offline", "unknown", "paused"]
     },
     "public.check_status": {
       "name": "check_status",
@@ -1715,25 +1186,10 @@
       "schema": "public",
       "values": ["open", "resolved"]
     },
-    "public.monitoring_event_type": {
-      "name": "monitoring_event_type",
-      "schema": "public",
-      "values": ["status_change", "failure", "recovery", "metric", "log"]
-    },
-    "public.monitoring_job_status": {
-      "name": "monitoring_job_status",
-      "schema": "public",
-      "values": ["pending", "leased", "running", "completed", "failed", "cancelled"]
-    },
     "public.provider_type": {
       "name": "provider_type",
       "schema": "public",
       "values": ["xtream", "m3u"]
-    },
-    "public.worker_lock_scope": {
-      "name": "worker_lock_scope",
-      "schema": "public",
-      "values": ["monitoring_scheduler", "aggregation", "retention", "provider_import"]
     }
   },
   "schemas": {},

@@ -33,19 +33,6 @@ importers:
         specifier: ^3.2.4
         version: 3.2.6(@types/node@22.19.21)(tsx@4.22.4)
 
-  apps/worker:
-    dependencies:
-      '@vhvtv/monitoring':
-        specifier: workspace:*
-        version: link:../../packages/monitoring
-    devDependencies:
-      '@types/node':
-        specifier: ^22.15.32
-        version: 22.19.21
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-
   packages/config:
     dependencies:
       zod:
@@ -86,25 +73,6 @@ importers:
       vitest:
         specifier: ^3.2.3
         version: 3.2.6(@types/node@24.13.2)(tsx@4.22.4)
-
-  packages/monitoring:
-    dependencies:
-      '@vhvtv/database':
-        specifier: workspace:*
-        version: link:../database
-      '@vhvtv/shared':
-        specifier: workspace:*
-        version: link:../shared
-    devDependencies:
-      '@types/node':
-        specifier: ^22.15.32
-        version: 22.19.21
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.6(@types/node@22.19.21)(tsx@4.22.4)
 
   packages/shared:
     devDependencies:
