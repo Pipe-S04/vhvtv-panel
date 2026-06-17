@@ -260,9 +260,12 @@ Weitere Details stehen in `docs/security.md` und `docs/secrets.md`.
 
 - Die Anwendung ist auf technisches Monitoring ausgelegt, nicht auf Wiedergabe oder Archivierung von IPTV-Inhalten.
 - Worker-Parallelität ist absichtlich auf `1` begrenzt.
+- Der Worker-Entrypoint validiert derzeit Laufzeitvoraussetzungen und stellt einen Healthcheck bereit; die Scheduler-Schleife aus `packages/monitoring` muss vor Produktivbetrieb noch in `apps/worker` verdrahtet werden.
+- Provider-Import-Endpunkte und Importer sind noch nicht vollständig end-to-end verbunden; produktive Imports müssen vor Freigabe mit M3U- und Xtream-Testdaten validiert werden.
 - Provider-Qualität, Rate Limits und Geoblocking können Prüfergebnisse beeinflussen.
-- Telegram-Alerts sind optional und ersetzen kein vollständiges Incident-Management.
+- Telegram-Alerts sind optional und ersetzen kein vollständiges Incident-Management; die Runtime-Anbindung ist erst nach Worker-Integration produktiv belastbar.
 - Ohne gültigen Master-Key können verschlüsselte Zugangsdaten nicht wiederhergestellt werden.
+- Der finale Review-Bericht mit aktuellem DoD-Status steht in `docs/final-acceptance-report.md`.
 
 ## Weitere Dokumentation
 

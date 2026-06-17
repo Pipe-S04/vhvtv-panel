@@ -18,6 +18,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api/v1';
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 class ApiError extends Error {
   constructor(
@@ -35,10 +36,12 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
+  const method = options.method?.toUpperCase() ?? 'GET';
   const res = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(UNSAFE_METHODS.has(method) ? { 'X-CSRF-Token': 'same-origin' } : {}),
       ...options.headers,
     },
   });
@@ -85,6 +88,7 @@ export type ChannelFilters = PaginationParams & {
   providerId?: string;
   categoryId?: string;
   status?: string;
+  priority?: string;
   monitorEnabled?: boolean;
   search?: string;
 };

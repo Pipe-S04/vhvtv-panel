@@ -3,6 +3,15 @@ import { redactString } from '@vhvtv/shared';
 import { normalizePayload } from './normalize.js';
 import type { ImportPayload, ProviderConnection, ProviderImporter } from './types.js';
 
+const REMOTE_URL_PATTERN = /^(?:https?|rtmps?|rtsp):\/\//i;
+
+function localLogoPath(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed || REMOTE_URL_PATTERN.test(trimmed) || trimmed.startsWith('//')) return null;
+  return trimmed.startsWith('/') ? trimmed : null;
+}
+
 type XtreamCategory = { category_id?: string | number; category_name?: string };
 type XtreamStream = {
   stream_id?: string | number;
@@ -55,7 +64,7 @@ export class XtreamCodesImporter implements ProviderImporter {
         name: stream.name ?? null,
         categoryExternalId: stream.category_id == null ? null : String(stream.category_id),
         categoryName: categoryNames.get(String(stream.category_id ?? '')) ?? null,
-        logoPath: stream.stream_icon ?? null,
+        logoPath: localLogoPath(stream.stream_icon),
         streamUrl: null
       }))
     });

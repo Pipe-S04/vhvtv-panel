@@ -6,9 +6,11 @@ import type {
   channelChecks,
   settings,
 } from '@vhvtv/database';
+import { redactValueForKey } from '@vhvtv/shared';
 
 type ProviderRow = typeof providers.$inferSelect;
 type ChannelRow = typeof channels.$inferSelect;
+type ChannelDtoRow = Omit<ChannelRow, 'externalStreamId' | 'logoPath'>;
 type CategoryRow = typeof categories.$inferSelect;
 type IncidentRow = typeof incidents.$inferSelect;
 type CheckRow = typeof channelChecks.$inferSelect;
@@ -30,7 +32,6 @@ export type ChannelDto = {
   categoryId: string | null;
   name: string;
   normalizedName: string;
-  logoPath: string | null;
   enabled: boolean;
   monitorEnabled: boolean;
   priority: string;
@@ -106,14 +107,13 @@ export function toProviderDto(row: ProviderRow): ProviderDto {
   };
 }
 
-export function toChannelDto(row: ChannelRow): ChannelDto {
+export function toChannelDto(row: ChannelDtoRow): ChannelDto {
   return {
     id: row.id,
     providerId: row.providerId,
     categoryId: row.categoryId,
     name: row.name,
     normalizedName: row.normalizedName,
-    logoPath: row.logoPath,
     enabled: row.enabled,
     monitorEnabled: row.monitorEnabled,
     priority: row.priority,
@@ -184,7 +184,7 @@ export function toCheckDto(row: CheckRow): CheckDto {
 export function toSettingDto(row: SettingRow): SettingDto {
   return {
     key: row.key,
-    value: row.value,
+    value: redactValueForKey(row.key, row.value),
     updatedAt: row.updatedAt.toISOString(),
   };
 }

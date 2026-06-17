@@ -72,6 +72,7 @@ export default function SenderPage() {
         limit: 20,
         search: debouncedSearch || undefined,
         status: statusFilter || undefined,
+        priority: priorityFilter || undefined,
         providerId: providerFilter || undefined,
         categoryId: categoryFilter || undefined,
         monitorEnabled: monitorFilter === '' ? undefined : monitorFilter === 'true',

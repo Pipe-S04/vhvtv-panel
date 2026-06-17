@@ -35,7 +35,6 @@ describe('API types - no credentials or stream URLs', () => {
       categoryId: null,
       name: 'Test Channel',
       normalizedName: 'test_channel',
-      logoPath: null,
       enabled: true,
       monitorEnabled: true,
       priority: 'manual',
@@ -51,6 +50,7 @@ describe('API types - no credentials or stream URLs', () => {
     };
     const keys = Object.keys(channel);
     expect(keys).not.toContain('streamUrl');
+    expect(keys).not.toContain('logoPath');
     expect(keys).not.toContain('url');
     expect(keys).not.toContain('externalStreamId');
   });

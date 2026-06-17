@@ -3,6 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: vhv-monitor-postgres
     restart: unless-stopped
+    pids_limit: 256
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-vhv_monitor}
       POSTGRES_USER: ${POSTGRES_USER:-vhv_monitor}
@@ -35,6 +36,7 @@ services:
     restart: unless-stopped
     read_only: true
     user: "10001:10001"
+    pids_limit: 256
     environment:
       NODE_ENV: production
       API_BIND: 0.0.0.0
@@ -44,7 +46,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-vhv_monitor}
       POSTGRES_USER: ${POSTGRES_USER:-vhv_monitor}
       API_PUBLIC_ORIGIN: ${API_PUBLIC_ORIGIN:-http://localhost:3000}
-      DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       MASTER_KEY_FILE: /run/secrets/master_key
     secrets:
       - master_key
@@ -76,6 +78,7 @@ services:
     restart: unless-stopped
     read_only: true
     user: "10001:10001"
+    pids_limit: 256
     environment:
       NODE_ENV: production
       WORKER_HEALTH_PORT: "8081"
@@ -84,7 +87,7 @@ services:
       DATABASE_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-vhv_monitor}
       POSTGRES_USER: ${POSTGRES_USER:-vhv_monitor}
-      DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       MASTER_KEY_FILE: /run/secrets/master_key
     secrets:
       - master_key
@@ -115,6 +118,7 @@ services:
     restart: unless-stopped
     read_only: true
     user: "10001:10001"
+    pids_limit: 256
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}

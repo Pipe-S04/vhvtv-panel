@@ -26,7 +26,7 @@ describe('provider import normalization', () => {
     expect(normalizeName('  VH1 HD &amp; México!! ')).toBe('vh1 hd mexico');
   });
 
-  it('parses M3U categories and channels with dummy data', () => {
+  it('parses M3U categories and channels without storing stream URLs or remote logos', () => {
     const parsed = parseM3uPlaylist(`#EXTM3U
 #EXTINF:-1 tvg-id="abc" tvg-name="News One" tvg-logo="https://img.test/logo.png" group-title="News",News One HD
 http://stream.test/live/news-one.m3u8
@@ -42,15 +42,21 @@ http://stream.test/live/sports-one.m3u8`);
         externalStreamId: 'abc',
         name: 'News One HD',
         normalizedName: 'news one hd',
-        categoryExternalId: 'news'
+        categoryExternalId: 'news',
+        logoPath: null,
+        streamUrl: null
       },
       {
         externalStreamId: 'sports',
         name: 'Sports 1',
         normalizedName: 'sports 1',
-        categoryExternalId: 'sports'
+        categoryExternalId: 'sports',
+        logoPath: null,
+        streamUrl: null
       }
     ]);
+    expect(JSON.stringify(parsed)).not.toContain('stream.test');
+    expect(JSON.stringify(parsed)).not.toContain('img.test');
   });
 
   it('imports updates, detects duplicates before dedupe, and marks missing channels removed', async () => {

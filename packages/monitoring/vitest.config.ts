@@ -5,17 +5,10 @@ import { defineConfig } from 'vitest/config';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 export default defineConfig({
-  test: {
-    include: ['test/**/*.test.ts'],
-    testTimeout: 15_000,
-    hookTimeout: 15_000,
-  },
   resolve: {
     alias: {
-      '@vhvtv/config': resolve(root, 'packages/config/src/index.ts'),
-      '@vhvtv/database': resolve(root, 'packages/database/src/index.ts'),
-      '@vhvtv/monitoring': resolve(root, 'packages/monitoring/src/index.ts'),
       '@vhvtv/shared': resolve(root, 'packages/shared/src/index.ts'),
+      '@vhvtv/database': resolve(root, 'packages/database/src/index.ts'),
     },
   },
 });

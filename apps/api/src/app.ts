@@ -4,6 +4,8 @@ import type { Database } from '@vhvtv/database';
 import { requestIdPlugin } from './plugins/request-id.js';
 import { securityHeadersPlugin } from './plugins/security-headers.js';
 import { rateLimitPlugin } from './plugins/rate-limit.js';
+import { csrfPlugin } from './plugins/csrf.js';
+import { requestLimitsPlugin } from './plugins/request-limits.js';
 import { errorHandlerPlugin } from './plugins/error-handler.js';
 import { openapiPlugin } from './plugins/openapi.js';
 import { healthRoutes } from './routes/health.js';
@@ -32,12 +34,19 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     },
     trustProxy: options.trustProxy ?? false,
     bodyLimit: 1_048_576, // 1 MB
+    routerOptions: {
+      maxParamLength: 256,
+    },
     requestIdHeader: false,
     genReqId: () => '',
   });
 
   await app.register(requestIdPlugin);
   await app.register(errorHandlerPlugin);
+  await app.register(csrfPlugin, {
+    ...(options.corsOrigin !== undefined ? { allowedOrigin: options.corsOrigin } : {}),
+  });
+  await app.register(requestLimitsPlugin);
   await app.register(securityHeadersPlugin, {
     ...(options.corsOrigin !== undefined ? { corsOrigin: options.corsOrigin } : {}),
   });

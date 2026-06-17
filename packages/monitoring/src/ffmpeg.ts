@@ -6,6 +6,8 @@ import type { NormalizedMeasurement } from './types.js';
 
 export type SpawnFfmpeg = (file: string, args: readonly string[]) => ChildProcessWithoutNullStreams;
 
+const MAX_STDERR_BYTES = 64 * 1024;
+
 export function buildFfmpegArgs(inputUrl: string, durationSeconds: number): string[] {
   return [
     '-hide_banner',
@@ -40,13 +42,16 @@ export async function runFfmpegCheck(
   let timedOut = false;
 
   child.stderr.on('data', (chunk: Buffer) => {
-    stderr += chunk.toString('utf8');
+    stderr = (stderr + chunk.toString('utf8')).slice(-MAX_STDERR_BYTES);
   });
 
   const watchdog = setTimeout(() => {
     timedOut = true;
-    child.kill('SIGKILL');
+    if (!child.killed) {
+      child.kill('SIGKILL');
+    }
   }, timeoutMs);
+  watchdog.unref?.();
 
   try {
     const [code] = (await once(child, 'close')) as [number | null, NodeJS.Signals | null];
@@ -77,6 +82,10 @@ export async function runFfmpegCheck(
     });
   } finally {
     clearTimeout(watchdog);
+    child.stderr.removeAllListeners('data');
+    if (!child.killed && child.exitCode === null) {
+      child.kill('SIGKILL');
+    }
   }
 }
 

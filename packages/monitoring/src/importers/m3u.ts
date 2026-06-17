@@ -1,9 +1,22 @@
+import { createHash } from 'node:crypto';
 import { redactString } from '@vhvtv/shared';
 
 import { normalizePayload } from './normalize.js';
 import type { ImportPayload, ProviderConnection, ProviderImporter } from './types.js';
 
 const ATTRIBUTE_PATTERN = /([\w-]+)="([^"]*)"/g;
+const REMOTE_URL_PATTERN = /^(?:https?|rtmps?|rtsp):\/\//i;
+
+function hashedStreamId(url: string): string {
+  return `m3u:${createHash('sha256').update(url).digest('hex').slice(0, 32)}`;
+}
+
+function localLogoPath(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed || REMOTE_URL_PATTERN.test(trimmed) || trimmed.startsWith('//')) return null;
+  return trimmed.startsWith('/') ? trimmed : null;
+}
 
 function parseAttributes(line: string): Record<string, string> {
   return Object.fromEntries(
@@ -39,12 +52,12 @@ export function parseM3uPlaylist(playlist: string): ImportPayload {
     if (categoryName)
       categories.set(categoryExternalId!, { externalId: categoryExternalId, name: categoryName });
     channels.push({
-      externalStreamId: pending['tvg-id'] ?? line,
+      externalStreamId: pending['tvg-id'] ?? hashedStreamId(line),
       name: pendingName ?? pending['tvg-name'],
       categoryExternalId,
       categoryName,
-      logoPath: pending['tvg-logo'] ?? null,
-      streamUrl: line
+      logoPath: localLogoPath(pending['tvg-logo']),
+      streamUrl: null
     });
     pending = null;
     pendingName = null;

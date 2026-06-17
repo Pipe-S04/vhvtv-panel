@@ -16,7 +16,6 @@ export type ChannelDto = {
   categoryId: string | null;
   name: string;
   normalizedName: string;
-  logoPath: string | null;
   enabled: boolean;
   monitorEnabled: boolean;
   priority: string;
