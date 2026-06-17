@@ -14,6 +14,22 @@ The Compose stack is runnable as a hardened single-host production baseline. Pos
 - `web`: non-internal network for browser-facing web traffic and web-to-API reverse proxy calls.
 - `backend`: internal-only network for PostgreSQL, API, and worker traffic.
 
+## Pre-flight validation before production
+
+Before promoting a host to production, validate the stack from a clean checkout or clean copy of the working tree:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+docker compose config
+docker compose up --build -d
+```
+
+On 2026-06-17 the dependency install path was verified from a clean copied tree that excluded `.git`, `node_modules`, `dist`, and `.next`. Docker validation was not possible in the review container because Docker was not installed. The current acceptance status and remaining release blockers are tracked in [`docs/final-acceptance-report.md`](final-acceptance-report.md).
+
 ## First run
 
 ```bash

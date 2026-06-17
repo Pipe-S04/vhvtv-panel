@@ -6,6 +6,8 @@ export type MonitoringSchedulerOptions = {
   repository: MonitorRepository;
   runner?: FfmpegRunner;
   cooldownMs?: number;
+  maxChecksPerTick?: number;
+  settingsCacheMs?: number;
   now?: () => Date;
   notifier?: CheckNotifier;
 };
@@ -14,15 +16,20 @@ export class MonitoringScheduler {
   private readonly repository: MonitorRepository;
   private readonly runner: FfmpegRunner;
   private readonly cooldownMs: number;
+  private readonly maxChecksPerTick: number;
+  private readonly settingsCacheMs: number;
   private readonly now: () => Date;
   private readonly notifier: CheckNotifier | undefined;
   private localMutex = false;
   private cooldownUntil = 0;
+  private cachedSettings: { value: Awaited<ReturnType<MonitorRepository['getSettings']>>; expiresAt: number } | undefined;
 
   constructor(options: MonitoringSchedulerOptions) {
     this.repository = options.repository;
     this.runner = options.runner ?? runFfmpegCheck;
     this.cooldownMs = options.cooldownMs ?? 1_000;
+    this.maxChecksPerTick = Math.max(1, options.maxChecksPerTick ?? 1);
+    this.settingsCacheMs = Math.max(0, options.settingsCacheMs ?? 5_000);
     this.now = options.now ?? (() => new Date());
     this.notifier = options.notifier;
   }
@@ -34,25 +41,61 @@ export class MonitoringScheduler {
 
     this.localMutex = true;
     try {
-      const settings = await this.repository.getSettings();
+      const settings = await this.getSettings();
       if (settings.paused) return false;
 
-      const channel = await this.repository.getDueChannel(this.now());
-      if (!channel) return false;
+      const channels = await this.getDueChannels();
+      if (channels.length === 0) return false;
 
-      const locked = await this.repository.tryAcquireDbLock(channel.id, this.now());
-      if (!locked) return false;
+      const globalLocked = await (this.repository.tryAcquireGlobalLock?.(this.now()) ??
+        this.repository.tryAcquireDbLock('global:ffmpeg', this.now()));
+      if (!globalLocked) return false;
 
+      let processed = 0;
       try {
-        await this.checkChannel(channel);
-        return true;
+        for (const channel of channels) {
+          const channelLocked = await this.repository.tryAcquireDbLock(channel.id, this.now());
+          if (!channelLocked) continue;
+
+          try {
+            await this.checkChannel(channel);
+            processed += 1;
+          } finally {
+            await this.repository.releaseDbLock(channel.id);
+          }
+        }
+        return processed > 0;
       } finally {
-        await this.repository.releaseDbLock(channel.id);
+        if (this.repository.releaseGlobalLock) {
+          await this.repository.releaseGlobalLock();
+        } else {
+          await this.repository.releaseDbLock('global:ffmpeg');
+        }
       }
     } finally {
       this.cooldownUntil = Date.now() + this.cooldownMs;
       this.localMutex = false;
     }
+  }
+
+  private async getSettings() {
+    const now = Date.now();
+    if (this.cachedSettings && this.cachedSettings.expiresAt > now) {
+      return this.cachedSettings.value;
+    }
+
+    const value = await this.repository.getSettings();
+    this.cachedSettings = { value, expiresAt: now + this.settingsCacheMs };
+    return value;
+  }
+
+  private async getDueChannels(): Promise<MonitorChannel[]> {
+    if (this.repository.getDueChannels) {
+      return this.repository.getDueChannels(this.now(), this.maxChecksPerTick);
+    }
+
+    const channel = await this.repository.getDueChannel(this.now());
+    return channel ? [channel] : [];
   }
 
   private async checkChannel(channel: MonitorChannel): Promise<void> {

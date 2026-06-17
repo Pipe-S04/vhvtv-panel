@@ -7,6 +7,7 @@ DB_NAME=${POSTGRES_DB:-vhv_monitor}
 DB_USER=${POSTGRES_USER:-vhv_monitor}
 RECIPIENT=${AGE_RECIPIENT:-}
 PASSPHRASE_FILE=${BACKUP_PASSPHRASE_FILE:-}
+BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
 mkdir -p "$BACKUP_DIR"
 ts=$(date -u +%Y%m%dT%H%M%SZ)
 out="$BACKUP_DIR/postgres-$ts.dump"
@@ -21,3 +22,6 @@ else
   shred -u "$out"
   exit 1
 fi
+
+# Retain encrypted backups only for the configured privacy window.
+find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'postgres-*.dump.age' -o -name 'postgres-*.dump.gpg' \) -mtime +"$BACKUP_RETENTION_DAYS" -delete

@@ -1,7 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
-import { decryptString, decodeMasterKey, encryptString } from '../src/crypto.js';
+import {
+  decryptSecretField,
+  decryptString,
+  decodeMasterKey,
+  encryptSecretField,
+  encryptString,
+} from '../src/crypto.js';
 
 describe('AES-256-GCM credential encryption', () => {
   it('round-trips plaintext with authenticated data', () => {
@@ -25,5 +31,16 @@ describe('AES-256-GCM credential encryption', () => {
     expect(decodeMasterKey(key.toString('base64'))).toHaveLength(32);
     expect(decodeMasterKey(key.toString('hex'))).toHaveLength(32);
     expect(() => decodeMasterKey(Buffer.from('short').toString('base64'))).toThrow();
+  });
+
+  it('serializes independent secret fields with separate nonces and tags', () => {
+    const key = randomBytes(32);
+    const username = encryptSecretField('alice', key, 'provider:1:username');
+    const password = encryptSecretField('secret', key, 'provider:1:password');
+
+    expect(username).not.toBe(password);
+    expect(decryptSecretField(username, key, 'provider:1:username')).toBe('alice');
+    expect(decryptSecretField(password, key, 'provider:1:password')).toBe('secret');
+    expect(() => decryptSecretField(password, key, 'provider:1:username')).toThrow();
   });
 });

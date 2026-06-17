@@ -61,24 +61,38 @@ export function aggregateDailyChannelStats({ from, to }: AggregationWindow) {
       average_startup_ms,
       average_bitrate_kbps
     )
+    with hourly as (
+      select
+        h.channel_id,
+        h.hour::date as day,
+        sum(h.checks) as checks,
+        sum(h.successful_checks) as successful_checks,
+        round(avg(h.average_startup_ms))::integer as average_startup_ms,
+        round(avg(h.average_bitrate_kbps))::integer as average_bitrate_kbps
+      from hourly_channel_stats h
+      where h.hour >= date_trunc('day', ${from}::timestamptz)
+        and h.hour < date_trunc('day', ${to}::timestamptz)
+      group by h.channel_id, h.hour::date
+    ),
+    incident_counts as (
+      select
+        i.channel_id,
+        i.started_at::date as day,
+        count(*)::integer as incident_count
+      from incidents i
+      where i.started_at >= date_trunc('day', ${from}::timestamptz)
+        and i.started_at < date_trunc('day', ${to}::timestamptz)
+      group by i.channel_id, i.started_at::date
+    )
     select
       h.channel_id,
-      h.hour::date as day,
-      round((sum(h.successful_checks)::numeric / nullif(sum(h.checks), 0)) * 100, 2) as availability_percent,
+      h.day,
+      round((h.successful_checks::numeric / nullif(h.checks, 0)) * 100, 2) as availability_percent,
       coalesce(i.incident_count, 0)::integer as incident_count,
-      round(avg(h.average_startup_ms))::integer as average_startup_ms,
-      round(avg(h.average_bitrate_kbps))::integer as average_bitrate_kbps
-    from hourly_channel_stats h
-    left join lateral (
-      select count(*)::integer as incident_count
-      from incidents i
-      where i.channel_id = h.channel_id
-        and i.started_at >= h.hour::date
-        and i.started_at < (h.hour::date + interval '1 day')
-    ) i on true
-    where h.hour >= date_trunc('day', ${from}::timestamptz)
-      and h.hour < date_trunc('day', ${to}::timestamptz)
-    group by h.channel_id, h.hour::date, i.incident_count
+      h.average_startup_ms,
+      h.average_bitrate_kbps
+    from hourly h
+    left join incident_counts i on i.channel_id = h.channel_id and i.day = h.day
     on conflict (channel_id, day) do update set
       availability_percent = excluded.availability_percent,
       incident_count = excluded.incident_count,

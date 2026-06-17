@@ -38,6 +38,19 @@ VHV Stream Monitor wird als selbst gehostetes Monorepo mit klar getrennten Laufz
 9. `next_check_at` wird neu berechnet.
 10. Worker wartet den Cooldown ab und startet erst danach den nächsten Check.
 
+## Implementierungsabgleich vom 2026-06-17
+
+Die Repository-Struktur ist inzwischen über Phase 0 hinausgewachsen: Web, API, Worker, Datenbank-, Monitoring-, Config-, Shared- und UI-Pakete sind vorhanden. Die grundlegenden Sicherheitsgrenzen aus der Architektur sind weiterhin die Referenz für die Implementierung.
+
+Aktueller Abgleich:
+
+- **Erfüllt:** Monorepo-Workspace, Compose-Servicegrenzen, internes PostgreSQL, zentrale Konfiguration, Secret-Loader, AES-256-GCM-Helfer, API-DTOs ohne Credentials, Redaction, FFmpeg-Aufruf per `spawn`-Argumentarray, deutsches Dashboard und lokale UI-Komponenten.
+- **Teilweise erfüllt:** Scheduler-, Importer-, Incident-, Telegram-, Retention- und Aggregationslogik existiert in Paketen und Tests, ist aber noch nicht vollständig über die API-/Worker-Laufzeit verdrahtet.
+- **Noch offen:** Der Worker-Entrypoint muss die Monitoring-Schleife ausführen; Provider-Import muss echte Importarbeit starten oder Jobs einreihen; Drizzle-Schema, Migrationen und Migrationsjournal müssen vor Produktionsdatenbanken konsolidiert werden.
+- **Release-Gate:** Der finale Review vom 2026-06-17 akzeptiert die Implementierung noch nicht für Produktion, bis Typecheck, Tests, Build, Docker-Validierung, Worker-Check und Importpfade nachweislich grün sind.
+
+Details stehen im finalen Review-Bericht: [`docs/final-acceptance-report.md`](final-acceptance-report.md).
+
 ## Geplante Dateistruktur
 
 ```text

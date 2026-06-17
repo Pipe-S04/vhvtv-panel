@@ -60,6 +60,7 @@ export const categories = pgTable("categories", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   providerNameIdx: index("categories_provider_name_idx").on(table.providerId, table.name),
+  nameIdx: index("categories_name_idx").on(table.name),
 }));
 
 export const channels = pgTable("channels", {
@@ -84,6 +85,13 @@ export const channels = pgTable("channels", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   dueIdx: index("channels_due_idx").on(table.monitorEnabled, table.enabled, table.nextCheckAt, table.priority),
+  listIdx: index("channels_list_idx").on(table.name, table.id),
+  statusIdx: index("channels_status_idx").on(table.currentStatus),
+  monitorStatusIdx: index("channels_monitor_status_idx").on(table.monitorEnabled, table.enabled, table.currentStatus),
+  providerNameIdx: index("channels_provider_name_idx").on(table.providerId, table.name, table.id),
+  categoryNameIdx: index("channels_category_name_idx").on(table.categoryId, table.name, table.id),
+  priorityNameIdx: index("channels_priority_name_idx").on(table.priority, table.name, table.id),
+  failuresIdx: index("channels_failures_idx").on(table.monitorEnabled, table.enabled, table.consecutiveFailures),
   normalizedIdx: index("channels_normalized_idx").on(table.providerId, table.normalizedName),
 }));
 
@@ -115,6 +123,8 @@ export const channelChecks = pgTable("channel_checks", {
   sanitizedErrorMessage: text("sanitized_error_message"),
 }, (table) => ({
   channelCheckedAtIdx: index("channel_checks_channel_checked_at_idx").on(table.channelId, table.checkedAt),
+  checkedAtIdx: index("channel_checks_checked_at_idx").on(table.checkedAt),
+  statusCheckedAtIdx: index("channel_checks_status_checked_at_idx").on(table.status, table.checkedAt),
 }));
 
 export const incidents = pgTable("incidents", {
@@ -126,7 +136,11 @@ export const incidents = pgTable("incidents", {
   errorCode: errorCode("error_code"),
   failedChecks: integer("failed_checks").notNull().default(1),
   successfulRecoveryChecks: integer("successful_recovery_checks").notNull().default(0),
-});
+}, (table) => ({
+  channelStatusIdx: index("incidents_channel_status_idx").on(table.channelId, table.status),
+  statusStartedIdx: index("incidents_status_started_idx").on(table.status, table.startedAt),
+  resolvedAtIdx: index("incidents_resolved_at_idx").on(table.resolvedAt),
+}));
 
 export const hourlyChannelStats = pgTable("hourly_channel_stats", {
   channelId: uuid("channel_id").notNull().references(() => channels.id, { onDelete: "cascade" }),
@@ -139,6 +153,7 @@ export const hourlyChannelStats = pgTable("hourly_channel_stats", {
   maxStartupMs: integer("max_startup_ms"),
 }, (table) => ({
   pk: primaryKey({ columns: [table.channelId, table.hour] }),
+  hourIdx: index("hourly_channel_stats_hour_idx").on(table.hour),
 }));
 
 export const dailyChannelStats = pgTable("daily_channel_stats", {
@@ -150,6 +165,7 @@ export const dailyChannelStats = pgTable("daily_channel_stats", {
   averageBitrateKbps: integer("average_bitrate_kbps"),
 }, (table) => ({
   pk: primaryKey({ columns: [table.channelId, table.day] }),
+  dayIdx: index("daily_channel_stats_day_idx").on(table.day),
 }));
 
 export const settings = pgTable("settings", {

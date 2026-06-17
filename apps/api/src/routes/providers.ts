@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import { eq, count } from 'drizzle-orm';
 import type { Database } from '@vhvtv/database';
 import { providers, channels } from '@vhvtv/database';
-import { encryptString, type EncryptedPayload } from '@vhvtv/config';
+import { encryptSecretField } from '@vhvtv/config';
 import { toProviderDto } from '../dto/mappers.js';
 import { paginate, offsetFromPage } from '../dto/pagination.js';
 import { paginationQuerySchema, uuidParamSchema } from '../schemas/common.js';
@@ -34,37 +35,29 @@ export async function providerRoutes(
   }, async (request, reply) => {
     const body = createProviderSchema.parse(request.body);
 
+    const providerId = randomUUID();
     let usernameEncrypted: string | null = null;
     let passwordEncrypted: string | null = null;
-    let encryptionNonce: string | null = null;
-    let encryptionTag: string | null = null;
 
     if (body.username) {
-      const payload = encryptString(body.username, masterKey);
-      usernameEncrypted = payload.ciphertext;
-      encryptionNonce = payload.iv;
-      encryptionTag = payload.tag;
+      usernameEncrypted = encryptSecretField(body.username, masterKey, providerCredentialAad(providerId, 'username'));
     }
 
     if (body.password) {
-      const payload: EncryptedPayload = encryptString(body.password, masterKey);
-      passwordEncrypted = payload.ciphertext;
-      if (!encryptionNonce) {
-        encryptionNonce = payload.iv;
-        encryptionTag = payload.tag;
-      }
+      passwordEncrypted = encryptSecretField(body.password, masterKey, providerCredentialAad(providerId, 'password'));
     }
 
     const [created] = await db
       .insert(providers)
       .values({
+        id: providerId,
         name: body.name,
         type: body.type,
         baseUrl: body.baseUrl,
         usernameEncrypted,
         passwordEncrypted,
-        encryptionNonce,
-        encryptionTag,
+        encryptionNonce: null,
+        encryptionTag: null,
         enabled: body.enabled,
       })
       .returning();
@@ -96,18 +89,22 @@ export async function providerRoutes(
     if (body.enabled !== undefined) updates.enabled = body.enabled;
 
     if (body.username !== undefined) {
-      const payload = encryptString(body.username, masterKey);
-      updates.usernameEncrypted = payload.ciphertext;
-      updates.encryptionNonce = payload.iv;
-      updates.encryptionTag = payload.tag;
+      updates.usernameEncrypted = encryptSecretField(
+        body.username,
+        masterKey,
+        providerCredentialAad(providerId, 'username')
+      );
+      updates.encryptionNonce = null;
+      updates.encryptionTag = null;
     }
     if (body.password !== undefined) {
-      const payload = encryptString(body.password, masterKey);
-      updates.passwordEncrypted = payload.ciphertext;
-      if (!updates.encryptionNonce) {
-        updates.encryptionNonce = payload.iv;
-        updates.encryptionTag = payload.tag;
-      }
+      updates.passwordEncrypted = encryptSecretField(
+        body.password,
+        masterKey,
+        providerCredentialAad(providerId, 'password')
+      );
+      updates.encryptionNonce = null;
+      updates.encryptionTag = null;
     }
 
     const [updated] = await db
@@ -165,4 +162,8 @@ export async function providerRoutes(
       existingChannels: Number(channelCount[0]?.count ?? 0),
     });
   });
+}
+
+function providerCredentialAad(providerId: string, field: 'username' | 'password'): string {
+  return `provider:${providerId}:${field}`;
 }

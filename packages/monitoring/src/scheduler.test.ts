@@ -52,6 +52,53 @@ describe('MonitoringScheduler', () => {
     expect(records).toBe(1);
   });
 
+
+
+  it('prevents two scheduler instances from starting FFmpeg in parallel', async () => {
+    let globalLocked = false;
+    let running = 0;
+    let maxRunning = 0;
+    let checks = 0;
+    const repository: MonitorRepository = {
+      async getSettings() {
+        return { paused: false };
+      },
+      async getDueChannel() {
+        return channel();
+      },
+      async tryAcquireGlobalLock() {
+        if (globalLocked) return false;
+        globalLocked = true;
+        return true;
+      },
+      async releaseGlobalLock() {
+        globalLocked = false;
+      },
+      async tryAcquireDbLock() {
+        return true;
+      },
+      async releaseDbLock() {},
+      async recordCheck() {
+        checks += 1;
+      }
+    };
+    const runner = async () => {
+      running += 1;
+      maxRunning = Math.max(maxRunning, running);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      running -= 1;
+      return { status: 'success' as const, audioDetected: true, videoDetected: true, decoderErrors: 0 };
+    };
+
+    const first = new MonitoringScheduler({ repository, cooldownMs: 0, runner });
+    const second = new MonitoringScheduler({ repository, cooldownMs: 0, runner });
+
+    await Promise.all([first.tick(), second.tick()]);
+
+    expect(maxRunning).toBe(1);
+    expect(checks).toBe(1);
+  });
+
   it('honors pause settings before lock acquisition', async () => {
     let locks = 0;
     const repository: MonitorRepository = {

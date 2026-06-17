@@ -4,6 +4,7 @@ import {
   toChannelDto,
   toIncidentDto,
   toCheckDto,
+  toSettingDto,
 } from '../src/dto/mappers.js';
 
 describe('Provider DTO security', () => {
@@ -88,6 +89,7 @@ describe('Channel DTO security', () => {
     expect(json).not.toContain('stream_12345');
     expect(json).not.toContain('externalStreamId');
     expect(json).not.toContain('streamUrl');
+    expect(json).not.toContain('logoPath');
   });
 });
 
@@ -161,19 +163,87 @@ describe('Error response security', () => {
     const { buildTestApp } = await import('./helpers.js');
     const app = await buildTestApp();
 
+    try {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/providers/not-a-uuid',
+      });
+
+      const body = res.json();
+      const json = JSON.stringify(body);
+      expect(json).not.toContain('at ');
+      expect(json).not.toContain('.ts:');
+      expect(json).not.toContain('.js:');
+    } finally {
+      await app.close();
+      process.env.NODE_ENV = originalEnv;
+    }
+  }, 30_000);
+
+  it('does not echo sensitive URLs in not found responses', async () => {
+    const { buildTestApp } = await import('./helpers.js');
+    const app = await buildTestApp();
+
     const res = await app.inject({
       method: 'GET',
-      url: '/api/v1/providers/not-a-uuid',
+      url: '/api/v1/missing?password=secret',
     });
 
-    const body = res.json();
-    const json = JSON.stringify(body);
-    expect(json).not.toContain('at ');
-    expect(json).not.toContain('.ts:');
-    expect(json).not.toContain('.js:');
+    expect(res.statusCode).toBe(404);
+    expect(JSON.stringify(res.json())).not.toContain('secret');
 
     await app.close();
-    process.env.NODE_ENV = originalEnv;
+  });
+});
+
+describe('Settings DTO security', () => {
+  it('redacts sensitive setting values', () => {
+    const dto = toSettingDto({
+      key: 'telegram.botToken',
+      value: '123456:secret',
+      updatedAt: new Date(),
+    });
+
+    expect(dto.value).toBe('[REDACTED]');
+  });
+});
+
+describe('CSRF protections', () => {
+  it('rejects unsafe requests from disallowed origins', async () => {
+    const { buildTestApp } = await import('./helpers.js');
+    const app = await buildTestApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/providers',
+      headers: {
+        origin: 'https://evil.com',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('CSRF_ORIGIN_DENIED');
+
+    await app.close();
+  });
+
+  it('rejects browser form posts without a CSRF header', async () => {
+    const { buildTestApp } = await import('./helpers.js');
+    const app = await buildTestApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/providers',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'name=test',
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('CSRF_TOKEN_REQUIRED');
+
+    await app.close();
   });
 });
 

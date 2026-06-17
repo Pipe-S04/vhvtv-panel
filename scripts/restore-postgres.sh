@@ -25,7 +25,13 @@ case "$backup" in
     [[ -n "$PASSPHRASE_FILE" ]] && gpg_args=(--batch --yes --decrypt --passphrase-file "$PASSPHRASE_FILE" -o "$tmp")
     gpg "${gpg_args[@]}" "$backup"
     ;;
-  *) cp "$backup" "$tmp" ;;
+  *)
+    if [[ "${ALLOW_PLAINTEXT_RESTORE:-0}" != "1" ]]; then
+      echo "Refusing plaintext restore input. Use .age/.gpg backups or set ALLOW_PLAINTEXT_RESTORE=1 for a controlled local recovery." >&2
+      exit 65
+    fi
+    cp "$backup" "$tmp"
+    ;; 
 esac
 
 cat "$tmp" | docker compose exec -T postgres pg_restore --clean --if-exists --no-owner -U "$DB_USER" -d "$DB_NAME"

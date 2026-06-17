@@ -28,7 +28,12 @@ export type AppConfig = z.infer<typeof appConfigSchema>;
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return appConfigSchema.parse({
     ...env,
-    POSTGRES_PASSWORD: env.POSTGRES_PASSWORD ?? loadSecret('POSTGRES_PASSWORD', { env }),
+    POSTGRES_PASSWORD:
+      env.POSTGRES_PASSWORD ??
+      loadSecret('POSTGRES_PASSWORD', {
+        env,
+        fileKeys: ['POSTGRES_PASSWORD_FILE', 'DATABASE_PASSWORD_FILE'],
+      }),
     MASTER_KEY: env.MASTER_KEY ?? loadSecret('MASTER_KEY', { env })
   });
 }

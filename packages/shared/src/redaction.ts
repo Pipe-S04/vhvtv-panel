@@ -1,8 +1,8 @@
 const REDACTED = '[REDACTED]';
 
 const SECRET_KEY_PATTERN =
-  /(password|passwd|pwd|token|secret|api[_-]?key|authorization|cookie|xtream|username|user)/i;
-const URL_PATTERN = /\bhttps?:\/\/[^\s"'<>]+/gi;
+  /(password|passwd|pwd|token|secret|api[_-]?key|authorization|cookie|set-cookie|xtream|username|user|base[_-]?url|stream[_-]?url|stream|credential|ciphertext|encrypted|encryption|nonce|tag|master[_-]?key)/i;
+const URL_PATTERN = /\b(?:https?|rtmps?|rtsp):\/\/[^\s"'<>]+/gi;
 const CREDENTIAL_URL_PATTERN = /\b(https?:\/\/)([^\s:@\/]+):([^\s@\/]+)@/gi;
 const QUERY_SECRET_PATTERN =
   /([?&](?:password|passwd|pwd|token|secret|api[_-]?key|username|user)=)[^&#\s]+/gi;
@@ -29,13 +29,39 @@ export function redactObject<T>(value: T): T {
   ) as T;
 }
 
+export function redactValueForKey<T>(key: string, value: T): T | string {
+  return SECRET_KEY_PATTERN.test(key) ? REDACTED : redactObject(value);
+}
+
 export const pinoRedactionPaths = [
   'req.headers.authorization',
   'req.headers.cookie',
+  'req.headers["x-api-key"]',
+  'req.headers["x-csrf-token"]',
   'res.headers.set-cookie',
   '*.password',
+  '*.passwd',
+  '*.pwd',
   '*.token',
   '*.secret',
   '*.apiKey',
-  '*.username'
+  '*.masterKey',
+  '*.username',
+  '*.baseUrl',
+  '*.streamUrl',
+  '*.stream_url',
+  '*.credentials',
+  '*.credential',
+  '*.ciphertext',
+  '*.usernameEncrypted',
+  '*.passwordEncrypted',
+  '*.encryptionNonce',
+  '*.encryptionTag',
+  '*.headers.authorization',
+  '*.headers.cookie',
+  '*.headers.set-cookie',
+  'err.message',
+  'err.stack',
+  'err.cause.message',
+  'err.cause.stack'
 ];

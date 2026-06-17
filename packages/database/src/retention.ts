@@ -6,7 +6,8 @@ export const RETENTION_POLICIES = {
   rawMeasurementsDays: 90,
   detailedErrorsDays: 30,
   hourlyAggregationsDays: 365,
-  dailyAggregationsDays: 730
+  dailyAggregationsDays: 730,
+  auditEventsDays: 365
 } as const;
 
 export type RetentionSummary = {
@@ -14,6 +15,7 @@ export type RetentionSummary = {
   resolvedIncidentsDeleted: number;
   hourlyAggregationsDeleted: number;
   dailyAggregationsDeleted: number;
+  auditEventsDeleted: number;
 };
 
 function affectedRows(result: { rowCount?: number | null }): number {
@@ -41,18 +43,30 @@ export function deleteDailyAggregationsOlderThan(days = RETENTION_POLICIES.daily
   return sql`delete from daily_channel_stats where day < (current_date - (${days} || ' days')::interval)::date`;
 }
 
+export function deleteAuditEventsOlderThan(days = RETENTION_POLICIES.auditEventsDays) {
+  return sql`delete from audit_events where created_at < now() - (${days} || ' days')::interval`;
+}
+
 export async function runRetentionCleanup(db: NodePgDatabase<typeof schema>): Promise<RetentionSummary> {
-  const [rawMeasurements, resolvedIncidents, hourlyAggregations, dailyAggregations] = await Promise.all([
+  const [
+    rawMeasurements,
+    resolvedIncidents,
+    hourlyAggregations,
+    dailyAggregations,
+    auditEvents
+  ] = await Promise.all([
     db.execute(deleteRawMeasurementsOlderThan()),
     db.execute(deleteResolvedIncidentsOlderThan()),
     db.execute(deleteHourlyAggregationsOlderThan()),
-    db.execute(deleteDailyAggregationsOlderThan())
+    db.execute(deleteDailyAggregationsOlderThan()),
+    db.execute(deleteAuditEventsOlderThan())
   ]);
 
   return {
     rawMeasurementsDeleted: affectedRows(rawMeasurements),
     resolvedIncidentsDeleted: affectedRows(resolvedIncidents),
     hourlyAggregationsDeleted: affectedRows(hourlyAggregations),
-    dailyAggregationsDeleted: affectedRows(dailyAggregations)
+    dailyAggregationsDeleted: affectedRows(dailyAggregations),
+    auditEventsDeleted: affectedRows(auditEvents)
   };
 }

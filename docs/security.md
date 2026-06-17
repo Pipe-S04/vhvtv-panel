@@ -7,15 +7,19 @@ Runtime secrets must be injected through Docker Secrets or mounted files and rea
 Required high-value secrets:
 
 - `MASTER_KEY` / `MASTER_KEY_FILE`: 32-byte AES key encoded as base64 or 64-character hex.
-- `POSTGRES_PASSWORD` / `POSTGRES_PASSWORD_FILE`: database password.
+- `POSTGRES_PASSWORD` / `POSTGRES_PASSWORD_FILE`: database password. `DATABASE_PASSWORD_FILE` is accepted as a backward-compatible file alias only.
 
 ## Encryption
 
-Provider credentials and stream access material are encrypted with AES-256-GCM. Each encryption operation uses a fresh 96-bit nonce and emits versioned payload metadata containing algorithm, nonce, authentication tag, and ciphertext. Callers should provide stable authenticated data such as a provider id to bind ciphertext to its owning record.
+Provider credentials and stream access material are encrypted with AES-256-GCM. Each field encryption operation uses a fresh 96-bit nonce and stores a self-contained, versioned payload containing algorithm, nonce, authentication tag, and ciphertext. Callers provide stable authenticated data such as provider id plus field name to bind ciphertext to its owning record and prevent field swapping.
 
 ## Logging and Errors
 
 All API and worker logging must pass sensitive values through central redaction before writing logs. Public errors must be sanitized before returning responses or alert text. The redaction layer removes URLs, credential-bearing query values, authorization/cookie headers, and sensitive object keys such as passwords, tokens, secrets, API keys, and usernames.
+
+## HTTP Request Protections
+
+The API rejects oversized request bodies, overlong URLs, unsupported body media types, browser form submissions without `X-CSRF-Token`, and unsafe cross-origin requests when no approved origin matches. The web and API layers both emit restrictive CSP, frame, content-type, referrer, and permissions policy headers. Rate limiting is keyed by client IP and emits standard rate limit headers without exposing server internals.
 
 ## Configuration Validation
 

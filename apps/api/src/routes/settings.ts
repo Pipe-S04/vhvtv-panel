@@ -3,6 +3,7 @@ import type { Database } from '@vhvtv/database';
 import { settings } from '@vhvtv/database';
 import { toSettingDto } from '../dto/mappers.js';
 import { updateSettingsSchema } from '../schemas/settings.js';
+import { redactValueForKey } from '@vhvtv/shared';
 
 export async function settingsRoutes(app: FastifyInstance, opts: { db: Database }): Promise<void> {
   const { db } = opts;
@@ -29,7 +30,7 @@ export async function settingsRoutes(app: FastifyInstance, opts: { db: Database 
           target: settings.key,
           set: { value, updatedAt: new Date() },
         });
-      updated.push({ key, value });
+      updated.push({ key, value: redactValueForKey(key, value) });
     }
 
     return reply.send({ updated });

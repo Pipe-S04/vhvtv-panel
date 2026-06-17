@@ -14,6 +14,7 @@ export const channelFilterSchema = paginationQuerySchema.extend({
   providerId: z.string().uuid().optional(),
   categoryId: z.string().uuid().optional(),
   status: z.enum(CHANNEL_STATUSES).optional(),
+  priority: z.enum(CHANNEL_PRIORITIES).optional(),
   monitorEnabled: z.coerce.boolean().optional(),
   search: z.string().max(200).optional(),
 });

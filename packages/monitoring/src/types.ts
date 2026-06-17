@@ -68,9 +68,12 @@ export type MonitorSettings = {
 
 export type MonitorRepository = {
   getSettings(): Promise<MonitorSettings>;
+  getDueChannels?(now: Date, limit: number): Promise<MonitorChannel[]>;
   getDueChannel(now: Date): Promise<MonitorChannel | undefined>;
   tryAcquireDbLock(channelId: string, now: Date): Promise<boolean>;
   releaseDbLock(channelId: string): Promise<void>;
+  tryAcquireGlobalLock?(now: Date): Promise<boolean>;
+  releaseGlobalLock?(): Promise<void>;
   recordCheck(
     channel: MonitorChannel,
     measurement: NormalizedMeasurement,

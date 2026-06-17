@@ -13,6 +13,8 @@ export type EncryptedPayload = {
   ciphertext: string;
 };
 
+const PAYLOAD_PREFIX = 'enc:v1:';
+
 export function decodeMasterKey(value: string): Buffer {
   const trimmed = value.trim();
   const key = /^[0-9a-f]{64}$/i.test(trimmed)
@@ -66,6 +68,38 @@ export function decryptString(payload: EncryptedPayload, masterKey: Buffer, aad?
     decipher.update(Buffer.from(payload.ciphertext, 'base64')),
     decipher.final()
   ]).toString('utf8');
+}
+
+export function serializeEncryptedPayload(payload: EncryptedPayload): string {
+  return `${PAYLOAD_PREFIX}${Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')}`;
+}
+
+export function deserializeEncryptedPayload(value: string): EncryptedPayload {
+  if (!value.startsWith(PAYLOAD_PREFIX)) {
+    throw new Error('Unsupported encrypted payload encoding.');
+  }
+
+  const decoded = Buffer.from(value.slice(PAYLOAD_PREFIX.length), 'base64url').toString('utf8');
+  const parsed = JSON.parse(decoded) as Partial<EncryptedPayload>;
+  if (
+    parsed.v !== 1 ||
+    parsed.alg !== 'AES-256-GCM' ||
+    typeof parsed.iv !== 'string' ||
+    typeof parsed.tag !== 'string' ||
+    typeof parsed.ciphertext !== 'string'
+  ) {
+    throw new Error('Invalid encrypted payload encoding.');
+  }
+
+  return parsed as EncryptedPayload;
+}
+
+export function encryptSecretField(plaintext: string, masterKey: Buffer, aad: string): string {
+  return serializeEncryptedPayload(encryptString(plaintext, masterKey, aad));
+}
+
+export function decryptSecretField(value: string, masterKey: Buffer, aad: string): string {
+  return decryptString(deserializeEncryptedPayload(value), masterKey, aad);
 }
 
 function assertMasterKey(masterKey: Buffer): void {
