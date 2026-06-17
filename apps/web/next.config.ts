@@ -7,7 +7,7 @@ const config: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.API_INTERNAL_URL ?? 'http://localhost:4000'}/api/:path*`,
+        destination: `${process.env.API_INTERNAL_URL ?? 'http://api:4000'}/api/:path*`,
       },
     ];
   },

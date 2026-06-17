@@ -4,7 +4,7 @@ import { buildApp } from './app.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const connectionString = `postgresql://${config.POSTGRES_USER}:${encodeURIComponent(String(config.POSTGRES_PASSWORD))}@localhost:5432/${config.POSTGRES_DB}`;
+  const connectionString = `postgresql://${config.POSTGRES_USER}:${encodeURIComponent(String(config.POSTGRES_PASSWORD))}@${config.DATABASE_HOST}:${config.DATABASE_PORT}/${config.POSTGRES_DB}`;
   const db = createDatabase(connectionString);
 
   const app = await buildApp({
@@ -15,11 +15,8 @@ async function main(): Promise<void> {
     trustProxy: true,
   });
 
-  const [host, portStr] = config.WEB_BIND.split(':');
-  const port = Number(portStr ?? 3000);
-
-  await app.listen({ host: host ?? '127.0.0.1', port });
-  app.log.info(`API listening on ${config.WEB_BIND}`);
+  await app.listen({ host: config.API_BIND, port: config.PORT });
+  app.log.info(`API listening on ${config.API_BIND}:${config.PORT}`);
 }
 
 main().catch((err) => {

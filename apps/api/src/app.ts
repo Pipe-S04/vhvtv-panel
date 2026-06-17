@@ -44,6 +44,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(rateLimitPlugin);
   await app.register(openapiPlugin);
 
+  await app.register(healthRoutes, { db: options.db });
+
   await app.register(
     async (v1) => {
       await v1.register(healthRoutes, { db: options.db });

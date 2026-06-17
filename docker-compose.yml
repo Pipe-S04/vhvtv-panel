@@ -18,10 +18,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+      - /run:rw,noexec,nosuid,nodev,size=16m
 
   api:
     build:
@@ -29,13 +33,17 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: vhv-monitor-api
     restart: unless-stopped
-    env_file: .env
+    read_only: true
+    user: "10001:10001"
     environment:
       NODE_ENV: production
+      API_BIND: 0.0.0.0
+      PORT: "4000"
       DATABASE_HOST: postgres
       DATABASE_PORT: "5432"
-      DATABASE_NAME: ${POSTGRES_DB:-vhv_monitor}
-      DATABASE_USER: ${POSTGRES_USER:-vhv_monitor}
+      POSTGRES_DB: ${POSTGRES_DB:-vhv_monitor}
+      POSTGRES_USER: ${POSTGRES_USER:-vhv_monitor}
+      API_PUBLIC_ORIGIN: ${API_PUBLIC_ORIGIN:-http://localhost:3000}
       DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
       MASTER_KEY_FILE: /run/secrets/master_key
     secrets:
@@ -48,14 +56,17 @@ services:
       - backend
       - web
     healthcheck:
-      test: ["CMD", "node", "dist/healthcheck.js"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 20s
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
 
   worker:
     build:
@@ -63,14 +74,16 @@ services:
       dockerfile: apps/worker/Dockerfile
     container_name: vhv-monitor-worker
     restart: unless-stopped
-    env_file: .env
+    read_only: true
+    user: "10001:10001"
     environment:
       NODE_ENV: production
+      WORKER_HEALTH_PORT: "8081"
       WORKER_CONCURRENCY: "1"
       DATABASE_HOST: postgres
       DATABASE_PORT: "5432"
-      DATABASE_NAME: ${POSTGRES_DB:-vhv_monitor}
-      DATABASE_USER: ${POSTGRES_USER:-vhv_monitor}
+      POSTGRES_DB: ${POSTGRES_DB:-vhv_monitor}
+      POSTGRES_USER: ${POSTGRES_USER:-vhv_monitor}
       DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
       MASTER_KEY_FILE: /run/secrets/master_key
     secrets:
@@ -82,14 +95,17 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "node", "dist/healthcheck.js"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8081/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 20s
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
 
   web:
     build:
@@ -97,26 +113,31 @@ services:
       dockerfile: apps/web/Dockerfile
     container_name: vhv-monitor-web
     restart: unless-stopped
-    env_file: .env
+    read_only: true
+    user: "10001:10001"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
     networks:
       - web
     ports:
       - "${WEB_BIND:-127.0.0.1:3000}:3000"
     healthcheck:
-      test: ["CMD", "node", "server-healthcheck.js"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 20s
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
 
 networks:
   backend:

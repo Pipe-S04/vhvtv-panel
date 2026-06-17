@@ -20,3 +20,9 @@ All API and worker logging must pass sensitive values through central redaction 
 ## Configuration Validation
 
 Configuration is parsed with the central Zod schema. Security-sensitive defaults are constrained in code: worker concurrency is exactly `1`, timeout and cooldown values have lower bounds, log levels are enumerated, and the master encryption key must decode to exactly 32 bytes.
+
+## Container Hardening
+
+Production containers run as non-root users, drop all Linux capabilities, enable `no-new-privileges`, and use read-only root filesystems for stateless Node services. Writable paths are limited to tmpfs mounts such as `/tmp`; PostgreSQL writes only to the named `postgres_data` volume and is not published on a host port.
+
+Docker Compose secrets mount sensitive values from `./secrets/*` into `/run/secrets/*`. Production operators should provision equivalent Docker secrets or bind-mounted secret files with restrictive permissions.

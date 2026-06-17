@@ -1,12 +1,13 @@
 import { runFfmpegCheck } from './ffmpeg.js';
 import { normalizeMeasurement } from './normalize.js';
-import type { FfmpegRunner, MonitorChannel, MonitorRepository } from './types.js';
+import type { FfmpegRunner, MonitorChannel, MonitorRepository, CheckNotifier } from './types.js';
 
 export type MonitoringSchedulerOptions = {
   repository: MonitorRepository;
   runner?: FfmpegRunner;
   cooldownMs?: number;
   now?: () => Date;
+  notifier?: CheckNotifier;
 };
 
 export class MonitoringScheduler {
@@ -14,6 +15,7 @@ export class MonitoringScheduler {
   private readonly runner: FfmpegRunner;
   private readonly cooldownMs: number;
   private readonly now: () => Date;
+  private readonly notifier: CheckNotifier | undefined;
   private localMutex = false;
   private cooldownUntil = 0;
 
@@ -22,6 +24,7 @@ export class MonitoringScheduler {
     this.runner = options.runner ?? runFfmpegCheck;
     this.cooldownMs = options.cooldownMs ?? 1_000;
     this.now = options.now ?? (() => new Date());
+    this.notifier = options.notifier;
   }
 
   async tick(): Promise<boolean> {
@@ -59,5 +62,6 @@ export class MonitoringScheduler {
       this.now().getTime() + Math.max(1, channel.checkIntervalMinutes) * 60_000
     );
     await this.repository.recordCheck(channel, measurement, nextCheckAt);
+    await this.notifier?.notifyCheckResult(channel, measurement);
   }
 }
