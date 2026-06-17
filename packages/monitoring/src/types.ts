@@ -2,6 +2,8 @@ import type { ChannelStatus, CheckStatus, ErrorCode } from '@vhvtv/database';
 
 export type MonitorChannel = {
   id: string;
+  name?: string;
+  categoryName?: string;
   streamUrl: string;
   checkDurationSeconds: number;
   checkIntervalMinutes: number;
@@ -77,3 +79,7 @@ export type MonitorRepository = {
 };
 
 export type FfmpegRunner = (inputUrl: string, timeoutMs: number) => Promise<NormalizedMeasurement>;
+
+export type CheckNotifier = {
+  notifyCheckResult(channel: MonitorChannel, measurement: NormalizedMeasurement): Promise<boolean>;
+};

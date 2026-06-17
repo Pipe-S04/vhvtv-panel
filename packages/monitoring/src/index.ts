@@ -5,3 +5,4 @@ export * from './normalize.js';
 export * from './scheduler.js';
 export * from './types.js';
 export * from './importers/index.js';
+export * from './telegram.js';
