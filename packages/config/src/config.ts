@@ -20,6 +20,9 @@ export const appConfigSchema = z.object({
   WORKER_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).default(5000),
   DEFAULT_CHECK_TIMEOUT_MS: z.coerce.number().int().min(5000).max(120000).default(30000),
   TELEGRAM_ALERTS_ENABLED: z.coerce.boolean().default(false),
+  // SSRF guard: when false (default) provider imports/tests may only reach public
+  // hosts. Set true only for trusted, isolated internal providers.
+  ALLOW_PRIVATE_PROVIDER_HOSTS: z.coerce.boolean().default(false),
   MASTER_KEY: z.string().transform((value) => decodeMasterKey(value))
 });
 

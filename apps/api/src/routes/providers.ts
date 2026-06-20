@@ -4,6 +4,7 @@ import { eq, count } from 'drizzle-orm';
 import type { Database } from '@vhvtv/database';
 import { providers, channels } from '@vhvtv/database';
 import { encryptSecretField } from '@vhvtv/config';
+import { safeFetch } from '@vhvtv/monitoring';
 import { toProviderDto } from '../dto/mappers.js';
 import { paginate, offsetFromPage } from '../dto/pagination.js';
 import { paginationQuerySchema, uuidParamSchema } from '../schemas/common.js';
@@ -136,11 +137,13 @@ export async function providerRoutes(
     if (!provider) throw new ApiError(404, 'NOT_FOUND', 'Provider not found.');
 
     try {
-      const url = new URL(provider.baseUrl);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10_000);
-      const response = await fetch(url.toString(), { method: 'HEAD', signal: controller.signal });
-      clearTimeout(timeout);
+      // SSRF-hardened: protocol allowlist, blocks internal/loopback/metadata targets,
+      // validates redirect hops, hard timeout. See @vhvtv/monitoring safeFetch.
+      const response = await safeFetch(provider.baseUrl, {
+        method: 'HEAD',
+        timeoutMs: 10_000,
+        maxBytes: 64 * 1024,
+      });
       return reply.send({ success: response.ok, statusCode: response.status });
     } catch {
       return reply.send({ success: false, statusCode: null });
