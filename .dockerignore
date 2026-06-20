@@ -1,0 +1,31 @@
+# Keep secrets, local env and VCS history out of the build context / image layers.
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+secrets/
+**/secrets/
+
+# Dependencies and build artefacts are reinstalled/rebuilt inside the image.
+node_modules
+**/node_modules
+.pnpm-store
+**/.next
+**/dist
+**/build
+**/coverage
+**/*.tsbuildinfo
+
+# Tests, docs and tooling are not needed at runtime.
+**/*.test.ts
+**/*.test.tsx
+**/test
+**/__tests__
+docs
+*.md
+!README.md
+.prettierrc
+.prettierignore
+eslint.config.js
+.DS_Store

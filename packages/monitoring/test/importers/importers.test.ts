@@ -110,8 +110,11 @@ http://stream.test/live/sports-one.m3u8`);
 
   it('builds Xtream requests server-side and redacts credential URLs on failure', async () => {
     const fetchMock = vi.fn(async () => new Response('nope', { status: 500 }));
-    vi.stubGlobal('fetch', fetchMock);
-    const importer = new XtreamCodesImporter();
+    // Inject the SSRF-guard dependencies so the test never performs real DNS/network I/O.
+    const importer = new XtreamCodesImporter({
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      lookup: async () => [{ address: '93.184.216.34', family: 4 }]
+    });
 
     await expect(
       importer.load({
@@ -130,9 +133,8 @@ http://stream.test/live/sports-one.m3u8`);
         credentials: { username: 'demo', password: 'secret' }
       })
     ).rejects.not.toThrow(/demo|secret/);
-    const calledUrl = fetchMock.mock.calls[0]?.[0] as URL;
+    const calledUrl = new URL(fetchMock.mock.calls[0]?.[0] as string);
     expect(calledUrl.searchParams.get('username')).toBe('demo');
     expect(calledUrl.searchParams.get('password')).toBe('secret');
-    vi.unstubAllGlobals();
   });
 });

@@ -2,6 +2,9 @@ import { createHash } from 'node:crypto';
 import { redactString } from '@vhvtv/shared';
 
 import { normalizePayload } from './normalize.js';
+import type { HttpFetchDeps } from './http.js';
+import { safeFetchOptions } from './http.js';
+import { safeFetch } from '../net/safe-fetch.js';
 import type { ImportPayload, ProviderConnection, ProviderImporter } from './types.js';
 
 const ATTRIBUTE_PATTERN = /([\w-]+)="([^"]*)"/g;
@@ -69,13 +72,15 @@ export function parseM3uPlaylist(playlist: string): ImportPayload {
 export class M3uImporter implements ProviderImporter {
   readonly kind = 'm3u' as const;
 
+  constructor(private readonly deps: HttpFetchDeps = {}) {}
+
   async load(provider: ProviderConnection, signal?: AbortSignal): Promise<ImportPayload> {
-    const response = await fetch(provider.baseUrl, signal ? { signal } : undefined);
+    const response = await safeFetch(provider.baseUrl, safeFetchOptions(this.deps, signal));
     if (!response.ok) {
       throw new Error(
         `M3U import request failed: ${response.status} ${redactString(provider.baseUrl)}`
       );
     }
-    return parseM3uPlaylist(await response.text());
+    return parseM3uPlaylist(response.text());
   }
 }
