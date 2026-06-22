@@ -2,6 +2,44 @@
 
 VHV Stream Monitor ist eine deutschsprachige, vollständig selbst gehostete Webanwendung für technisches IPTV-Stream-Monitoring. Die Anwendung überwacht Sender aus Xtream-Codes-Providern oder M3U-Listen, speichert nur technische Prüfergebnisse und ist auf Datenschutz, minimale Angriffsfläche und kontrollierte Worker-Ausführung ausgelegt.
 
+## Privacy-First-Zielbild
+
+Das Projekt verfolgt ein technisches Reduktionsprinzip: **so wenig Daten wie möglich speichern**. Konkret bedeutet das im Code:
+
+- Keine Speicherung von Video, Audio, Screenshots oder Rohpaketen.
+- Keine Persistierung vollständiger Stream-URLs.
+- Verschlüsselte Ablage von Provider-Zugangsdaten (AES-256-GCM).
+- Redaction sensibler Werte in Logs und API-Fehlern.
+- Keine externen Tracking-, Font- oder Telemetrie-Dienste.
+
+Eine ausführliche Datenschutz- und Datenhaltungs-Analyse steht in [`PRIVACY.md`](PRIVACY.md). Dort sind auch offene Risiken/TODOs dokumentiert (u. a. fehlende App-Authentifizierung, Klartext-`base_url` bei M3U).
+
+## Architekturüberblick
+
+Monorepo mit getrennten Diensten (pnpm-Workspaces):
+
+| Dienst    | Pfad                  | Aufgabe                                                          |
+| --------- | --------------------- | --------------------------------------------------------------- |
+| Web       | `apps/web`            | Next.js App Router Dashboard (deutschsprachig)                  |
+| API       | `apps/api`            | Fastify-REST-API unter `/api/v1`                                |
+| Worker    | `apps/worker`         | serieller Stream-Check-Worker mit FFmpeg (Concurrency `1`)      |
+| Datenbank | `packages/database`   | PostgreSQL-Schema + Migrationen (Drizzle ORM)                   |
+| Config    | `packages/config`     | AES-256-GCM-Krypto, Secret-Loader, Zod-Config-Validierung       |
+| Shared    | `packages/shared`     | Redaction/Sanitization von Logs und Fehlern                     |
+| Monitoring| `packages/monitoring` | Importer (Xtream/M3U), FFmpeg-Check, Telegram, SSRF-Guard       |
+| UI        | `packages/ui`         | gemeinsame UI-Bausteine/Tokens                                  |
+
+Betrieben werden die Dienste per Docker Compose: `postgres`, `api`, `worker`, `web`. PostgreSQL liegt im internen Netz (`backend: internal`) ohne Host-Port.
+
+## Datenfluss (grob)
+
+1. **Admin** legt einen Provider an (API). Benutzername/Passwort werden **verschlüsselt** gespeichert; `base_url` wird im Klartext abgelegt.
+2. **Import** holt Kategorien/Sender vom Provider (über SSRF-gehärteten `safeFetch`) und speichert normalisierte Metadaten. Stream-URLs werden dabei **nicht** übernommen.
+3. **Worker** wählt den nächsten fälligen Sender, entschlüsselt Credentials, erzeugt die Stream-URL **nur im Speicher** und prüft sie mit FFmpeg.
+4. **Ergebnisse** (technische Messwerte, bereinigte Fehlertexte) werden gespeichert; Incidents und Aggregationen werden abgeleitet.
+5. **Optional**: bei bestätigten Störungen/Recovery sendet der Worker eine **Telegram**-Nachricht (nur Sendername, Fehlercode, Kategorie, Zeit).
+6. **Dashboard/API** liefern technische Daten aus – ohne Credentials, ohne `base_url`, ohne Stream-URLs.
+
 ## Funktionsumfang
 
 - Self-hosted Betrieb mit Docker Compose.
@@ -50,6 +88,41 @@ Für lokale Entwicklung und Betrieb werden benötigt:
 5. Weboberfläche öffnen: <http://127.0.0.1:3000>
 
 Die Datei `.env` enthält nicht geheime Standardwerte und lokale Entwicklungswerte. Produktive Passwörter und der Master-Key gehören in `secrets/` und dürfen nicht in Git eingecheckt werden.
+
+## ENV-Konfiguration
+
+Quelle: `.env.example` und `packages/config/src/config.ts`. Secrets sollten in Produktion als Datei-Variante (`*_FILE`) / Docker-Secret bereitgestellt werden, **nicht** als Klartext in `.env`.
+
+| Variable                       | Pflicht | Standard            | Bedeutung / Hinweis                                                    |
+| ------------------------------ | ------- | ------------------- | --------------------------------------------------------------------- |
+| `POSTGRES_DB`                  | ja      | `vhv_monitor`       | Datenbankname                                                         |
+| `POSTGRES_USER`                | ja      | `vhv_monitor`       | Datenbankbenutzer                                                     |
+| `POSTGRES_PASSWORD`            | ja*     | –                   | DB-Passwort; in Prod via `POSTGRES_PASSWORD_FILE`/Docker-Secret       |
+| `DATABASE_HOST` / `DATABASE_PORT` | nein | `localhost`/`5432`  | DB-Verbindung                                                         |
+| `API_BIND` / `PORT`            | nein    | `0.0.0.0`/`4000`    | API-Bindung                                                          |
+| `WEB_BIND`                     | nein    | `127.0.0.1:3000`    | Host-Bindung des Web-Dienstes (Default nur lokal)                    |
+| `API_PUBLIC_ORIGIN`            | ja      | –                   | öffentliche Origin (HTTPS) für CSRF/CORS                             |
+| `NEXT_PUBLIC_API_BASE_URL`     | nein    | `/api/v1`           | API-Basis-URL im Frontend                                           |
+| `LOG_LEVEL`                    | nein    | `info`              | pino-Loglevel                                                       |
+| `WORKER_CONCURRENCY`           | nein    | `1`                 | **muss `1` sein** (im Schema erzwungen)                              |
+| `WORKER_COOLDOWN_MS`           | nein    | `3000`              | Cooldown zwischen Checks                                            |
+| `WORKER_POLL_INTERVAL_MS`      | nein    | `5000`              | Poll-Intervall des Workers                                          |
+| `DEFAULT_CHECK_TIMEOUT_MS`     | nein    | `30000`             | Timeout je Stream-Check                                             |
+| `ALLOW_PRIVATE_PROVIDER_HOSTS` | nein    | `false`             | SSRF-Guard; in Prod `false` lassen                                  |
+| `MASTER_KEY`                   | ja*     | –                   | 32-Byte-AES-Key (base64 oder 64-Hex); in Prod via `MASTER_KEY_FILE` |
+| `TELEGRAM_ALERTS_ENABLED`      | nein    | `false`             | Telegram-Alerts aktivieren                                         |
+| `TELEGRAM_BOT_TOKEN`           | bedingt | –                   | nur wenn Alerts aktiv; Secret                                      |
+| `TELEGRAM_CHAT_ID`             | bedingt | –                   | nur wenn Alerts aktiv                                              |
+| `TELEGRAM_ALERT_COOLDOWN_MS`   | nein    | `1800000`           | Cooldown je Sender/Alarmtyp                                        |
+
+\* In Produktion sollten `POSTGRES_PASSWORD` und `MASTER_KEY` über die `*_FILE`-Variante bereitgestellt werden. Es darf **nicht** gleichzeitig `NAME` und `NAME_FILE` für dasselbe Secret gesetzt sein – sonst bricht der Start kontrolliert ab.
+
+## Datenbank / PostgreSQL
+
+- Persistenz in PostgreSQL (Volume `postgres_data`), Schema und Migrationen via Drizzle in `packages/database`.
+- Wesentliche Tabellen: `providers`, `categories`, `channels`, `channel_checks`, `incidents`, `hourly_channel_stats`, `daily_channel_stats`, `settings`, `audit_events`.
+- Provider-Credentials liegen **verschlüsselt** (`username_encrypted`, `password_encrypted`); `base_url` liegt **im Klartext** (bei M3U ggf. mit Token – siehe Sicherheits-/Datenschutzhinweise).
+- Vollständige Tabellen-/Sensibilitätsübersicht in [`PRIVACY.md`](PRIVACY.md), Abschnitt „PostgreSQL-Datenmodell".
 
 ## Lokale Entwicklung
 
@@ -244,6 +317,9 @@ Vor produktiven Updates immer ein Backup erstellen. Bei Änderungen am Datenbank
 - Keine Ausgabe vollständiger Stream-URLs an das Frontend.
 - API-Antworten enthalten keine Provider-Passwörter, verschlüsselten Credentials oder FFmpeg-Rohlogs.
 - Logs werden redigiert, bevor sensitive Werte geschrieben werden.
+- Es werden **keine Endkunden- oder KYC-Daten** verarbeitet; die einzigen personennahen Daten sind die vom Betreiber selbst eingegebenen Provider-Zugangsdaten.
+
+Die vollständige Datenschutz- und Datenhaltungs-Analyse inkl. Tabellenübersicht, Retention, externen Datenflüssen und offenen Risiken steht in **[`PRIVACY.md`](PRIVACY.md)**.
 
 ## Sicherheit
 
@@ -252,9 +328,19 @@ Vor produktiven Updates immer ein Backup erstellen. Bei Änderungen am Datenbank
 - PostgreSQL bleibt im internen Compose-Netzwerk.
 - Container verwenden `no-new-privileges` und droppen Capabilities.
 - FFmpeg wird ohne Shell-Konkatenation gestartet.
+- Ausgehende Provider-Requests laufen über einen SSRF-gehärteten `safeFetch`-Guard.
 - `.env`, `.env.*` und `secrets/` dürfen nicht eingecheckt werden.
 
+**Wichtiger Hinweis zum Zugriffsschutz:** Die API und das Web-Dashboard enthalten **keine eigene Authentifizierung** (kein Login, keine Rollen). Der „Admin-only"-Charakter ergibt sich allein aus dem Deployment (lokale Bindung, internes DB-Netz, Reverse Proxy). **Vor jeder Exposition ist eine vorgelagerte Zugriffskontrolle (z. B. Reverse-Proxy-Auth, SSO oder IP-Allowlist) zwingend.** Details und weitere Risiken siehe [`PRIVACY.md`](PRIVACY.md), Abschnitt „Risiken und empfohlene Maßnahmen".
+
 Weitere Details stehen in `docs/security.md` und `docs/secrets.md`.
+
+## Backup, Retention und Wartung
+
+- Bevorzugt das verschlüsselnde Skript `scripts/backup-postgres.sh` nutzen (age/gpg; verweigert unverschlüsselte Dumps). Restore über `scripts/restore-postgres.sh`.
+- Backups enthalten verschlüsselte Credentials **und** die Klartext-`base_url` – also potenziell sensibel; verschlüsselt und getrennt lagern.
+- Den `master_key` separat sichern: Ohne ihn sind verschlüsselte Credentials unwiederbringlich.
+- Aufbewahrungsfristen sind in `packages/database/src/retention.ts` definiert (Rohmessungen 90 Tage, aufgelöste Incidents 30 Tage, stündliche/tägliche Aggregationen 365/730 Tage, Audit-Events 365 Tage). **Hinweis:** Ein automatischer Retention-Lauf ist im Anwendungscode derzeit nicht verdrahtet und im Betrieb zu prüfen (siehe [`PRIVACY.md`](PRIVACY.md)).
 
 ## Bekannte Einschränkungen
 
@@ -266,6 +352,15 @@ Weitere Details stehen in `docs/security.md` und `docs/secrets.md`.
 - Telegram-Alerts sind optional und ersetzen kein vollständiges Incident-Management; die Runtime-Anbindung ist erst nach Worker-Integration produktiv belastbar.
 - Ohne gültigen Master-Key können verschlüsselte Zugangsdaten nicht wiederhergestellt werden.
 - Der finale Review-Bericht mit aktuellem DoD-Status steht in `docs/final-acceptance-report.md`.
+
+### Offene Datenschutz-/Sicherheits-TODOs
+
+- **Keine App-Authentifizierung:** Zugriffskontrolle muss vorgelagert ergänzt werden (siehe Sicherheit).
+- **`base_url` im Klartext:** Bei M3U potenziell mit eingebettetem Token – als Secret behandeln; mögliche Verschlüsselung ist ein offenes Code-TODO.
+- **Retention nicht verdrahtet:** `runRetentionCleanup` ist implementiert, aber ohne automatischen Aufruf.
+- **`audit_events` ohne Schreibpfad:** Tabelle/Retention vorhanden, Audit-Logging noch nicht implementiert.
+
+Diese Punkte sind in [`PRIVACY.md`](PRIVACY.md) ausführlicher dokumentiert.
 
 ## Weitere Dokumentation
 
